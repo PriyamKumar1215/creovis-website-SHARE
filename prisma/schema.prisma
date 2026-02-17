@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String
+  role      Role       @default(USER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  leads     Lead[]
+  bookings  Booking[]
+  payments  Payment[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String
+  name      String
+  company   String?
+  service   String
+  message   String
+  budget    String?
+  status    Status   @default(NEW)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@map("leads")
+}
+
+enum Status {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CONVERTED
+  REJECTED
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String
+  price       Decimal   @db.Decimal(10, 2)
+  duration    Int       // in minutes
+  features    String[]
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+
+  @@map("services")
+}
+
+model Booking {
+  id           String    @id @default(cuid())
+  email        String
+  phone        String
+  name         String
+  serviceId    String
+  service      Service   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  scheduledAt  DateTime
+  status       BookingStatus @default(PENDING)
+  notes        String?
+  payment      Payment?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  email           String
+  amount          Decimal  @db.Decimal(10, 2)
+  currency        String   @default("INR")
+  paymentMethod   PaymentMethod
+  provider        Provider
+  transactionId   String   @unique
+  orderId         String?
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  bookingId       String?  @unique
+  booking         Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  status          PaymentStatus
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([transactionId])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  WALLET
+  NET_BANKING
+}
+
+enum Provider {
+  RAZORPAY
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String
+  imageUrl    String
+  projectUrl  String?
+  featured    Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@map("portfolio")
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  company   String?
+  image     String?
+  content   String
+  rating    Int      @default(5)
+  featured  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  type      String   // contact, booking, payment
+  status    String   // sent, failed
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@map("email_logs")
+}
